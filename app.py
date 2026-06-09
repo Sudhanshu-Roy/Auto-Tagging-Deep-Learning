@@ -1,42 +1,58 @@
 import re
 import pickle
-import numpy as np
 import streamlit as st
 
 from bs4 import BeautifulSoup
 
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Embedding, SimpleRNN, Dense
+from tensorflow.keras.layers import (
+    Embedding,
+    Conv1D,
+    Dropout,
+    GlobalMaxPooling1D,
+    Dense
+)
+
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-# Load Tokenizer & Encoder
-
-with open(r"models\tokenizer.pkl", "rb") as f:
-    tokenizer = pickle.load(f)
-
-with open(r"models\mlb.pkl", "rb") as f:
-    mlb = pickle.load(f)
-
-# Parameters
+# Configuration
 
 MAX_LEN = 100
-OPT_THRESHOLD = 0.25
+OPT_THRESHOLD = 0.31
+
+
+# -----------------------------
+# Load Tokenizer & Encoder
+# -----------------------------
+
+with open("models/tokenizer.pkl", "rb") as f:
+    tokenizer = pickle.load(f)
+
+with open("models/mlb.pkl", "rb") as f:
+    mlb = pickle.load(f)
+
 
 VOCAB_SIZE = tokenizer.num_words + 1
 
-# Recreate Architecture
+# CNN Model Architecture
 
 model = Sequential([
     Embedding(
         input_dim=VOCAB_SIZE,
         output_dim=50,
+        input_shape=(MAX_LEN,),
         mask_zero=True
     ),
 
-    SimpleRNN(
-        128,
-        activation="relu"
+    Conv1D(
+        filters=64,
+        kernel_size=3,
+        padding="same"
     ),
+
+    Dropout(0.1),
+
+    GlobalMaxPooling1D(),
 
     Dense(
         128,
@@ -51,13 +67,9 @@ model = Sequential([
 
 model.build((None, MAX_LEN))
 
-# Load Weights
-
 model.load_weights(
-    r"models\weights_best.weights.h5"
+    "models/cnn/weights_best.weights.h5"
 )
-
-print("Model Loaded Successfully")
 
 # Text Cleaning
 
@@ -76,11 +88,11 @@ def cleaner(text):
 
     text = text.lower()
 
-    tokens = text.split()
+    return " ".join(
+        text.split()
+    )
 
-    return " ".join(tokens)
-
-# Prediction
+# Prediction Function
 
 def predict_tags(text):
 
@@ -118,18 +130,27 @@ def predict_tags(text):
 
 st.set_page_config(
     page_title="Auto Tag Generator",
-    page_icon="🏷️"
+    page_icon="🏷️",
+    layout="centered"
 )
 
 st.title("🏷️ Auto Tag Generator")
 
-st.write(
-    "Enter a Stack Overflow style question and get predicted tags."
+st.markdown(
+    """
+    Predict Stack Overflow tags using a **CNN-based
+    Multi-Label NLP Classification Model**.
+
+    **Model Performance**
+    - Macro F1 Score: **0.83**
+    - Architecture: **CNN**
+    """
 )
 
 user_input = st.text_area(
     "Enter Question",
-    height=200
+    height=200,
+    placeholder="Type your Stack Overflow question here..."
 )
 
 if st.button("Predict Tags"):
@@ -150,7 +171,13 @@ if st.button("Predict Tags"):
             "Predicted Tags"
         )
 
-        for tag in tags:
-            st.markdown(
-                f"- **{tag}**"
+        cols = st.columns(
+            min(len(tags), 4)
+        )
+
+        for i, tag in enumerate(tags):
+
+            cols[i % 4].metric(
+                "Tag",
+                tag
             )
