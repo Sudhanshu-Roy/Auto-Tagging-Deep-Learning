@@ -4,3 +4,4 @@ numpy
 pandas
 scikit-learn
 beautifulsoup4
+lxml
