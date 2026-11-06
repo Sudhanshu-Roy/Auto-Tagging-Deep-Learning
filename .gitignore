@@ -9,6 +9,15 @@ venv/
 env/
 .venv/
 
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node / frontend
+node_modules/
+.vite/
+
 # Jupyter
 .ipynb_checkpoints/
 
